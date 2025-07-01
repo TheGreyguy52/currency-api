@@ -1,28 +1,53 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import JSONResponse
 import requests
+import logging
 
-app = FastAPI()
+# Initialize app
+app = FastAPI(title="Currency Converter API", version="1.0")
 
-@app.get("/convert")
-def convert_currency(from_currency: str, to_currency: str, amount: float):
+# Setup basic logging
+logging.basicConfig(level=logging.INFO)
+
+# Supported currencies (you can expand this list or fetch dynamically)
+SUPPORTED_CURRENCIES = {"USD", "EUR", "PHP", "JPY", "GBP", "AUD", "CAD", "CHF", "CNY", "SGD"}
+
+@app.get("/convert", summary="Convert currency", description="Converts amount from one currency to another.")
+def convert_currency(
+    from_currency: str = Query(..., description="Currency to convert from, e.g., USD"),
+    to_currency: str = Query(..., description="Currency to convert to, e.g., EUR"),
+    amount: float = Query(..., gt=0, description="Amount to convert (must be greater than 0)")
+):
+    from_currency = from_currency.upper()
+    to_currency = to_currency.upper()
+
+    # ✅ Validate currency input
+    if from_currency not in SUPPORTED_CURRENCIES or to_currency not in SUPPORTED_CURRENCIES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"One or both currencies are not supported. Supported: {', '.join(sorted(SUPPORTED_CURRENCIES))}"
+        )
+
+    url = f"https://api.exchangerate.host/convert?from={from_currency}&to={to_currency}&amount={amount}"
+
     try:
-        # Build the API URL
-        url = f"https://api.exchangerate.host/convert?from={from_currency.upper()}&to={to_currency.upper()}&amount={amount}"
-
-        # Call exchangerate.host API
-        response = requests.get(url)
+        response = requests.get(url, timeout=5)
         data = response.json()
 
-        # Check for valid result
         if response.status_code != 200 or "result" not in data or data["result"] is None:
-            raise HTTPException(status_code=400, detail="Invalid API response or unsupported currency")
+            raise HTTPException(status_code=502, detail="Failed to get valid response from currency service.")
 
-        return {
-            "from": from_currency.upper(),
-            "to": to_currency.upper(),
-            "amount": amount,
-            "converted_amount": data["result"]
-        }
+        converted = round(data["result"], 2)
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(content={
+            "from": from_currency,
+            "to": to_currency,
+            "original_amount": amount,
+            "converted_amount": converted,
+            "rate_used": data.get("info", {}).get("rate"),
+            "provider": "exchangerate.host"
+        })
+
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Request failed: {e}")
+        raise HTTPException(status_code=503, detail="External API is unavailable.")
