@@ -3,13 +3,18 @@ import requests
 
 app = FastAPI()
 
+API_KEY = "your_actual_key_here"  # Replace with your real exchangerate.host key
+
 @app.get("/convert")
 def convert_currency(from_currency: str, to_currency: str, amount: float):
-    url = f"https://api.exchangerate.host/convert?from={from_currency}&to={to_currency}&amount={amount}"
+    url = (
+        f"https://api.exchangerate.host/convert?"
+        f"from={from_currency}&to={to_currency}&amount={amount}&access_key={API_KEY}"
+    )
     response = requests.get(url)
-    
+
     if response.status_code != 200:
         raise HTTPException(status_code=500, detail="Currency conversion failed")
-    
+
     data = response.json()
-    return {"result": data["result"]}
+    return {"result": data.get("result")}
