@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 import requests
 
 app = FastAPI()
@@ -6,10 +6,14 @@ app = FastAPI()
 ACCESS_KEY = "837066195c3e07fb2f8d4e180b95de3"
 
 @app.get("/convert")
-def convert(from_currency: str, to_currency: str, amount: float):
+def convert(
+    from_: str = Query(..., alias="from"),
+    to: str = Query(...),
+    amount: float = Query(...)
+):
     url = (
         f"https://api.exchangerate.host/convert"
-        f"?from={from_currency}&to={to_currency}&amount={amount}&access_key={ACCESS_KEY}"
+        f"?from={from_}&to={to}&amount={amount}&access_key={ACCESS_KEY}"
     )
     try:
         response = requests.get(url)
@@ -26,8 +30,8 @@ def convert(from_currency: str, to_currency: str, amount: float):
         raise HTTPException(status_code=400, detail="No conversion result returned")
 
     return {
-        "from": from_currency,
-        "to": to_currency,
+        "from": from_,
+        "to": to,
         "amount": amount,
         "converted": result
     }
