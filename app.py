@@ -5,20 +5,21 @@ app = FastAPI()
 
 @app.get("/convert")
 def convert_currency(from_currency: str, to_currency: str, amount: float):
-    url = f"https://api.exchangerate.host/convert?from={from_currency}&to={to_currency}&amount={amount}"
-    response = requests.get(url)
+    url = f"https://api.exchangerate.host/convert"
+    params = {
+        "from": from_currency,
+        "to": to_currency,
+        "amount": amount
+    }
+
+    response = requests.get(url, params=params)
 
     if response.status_code != 200:
         raise HTTPException(status_code=500, detail="Currency conversion failed")
 
     data = response.json()
 
-    if "result" not in data or data["result"] is None:
-        raise HTTPException(status_code=500, detail="Invalid response from exchange API")
+    if data.get("result") is None:
+        raise HTTPException(status_code=500, detail="Invalid API response or unsupported currency")
 
     return {"result": data["result"]}
-
-
-    data = response.json()
-    return {"result": data.get("result")}
-
