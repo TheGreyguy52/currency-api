@@ -1,37 +1,40 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Query, HTTPException
 import requests
 
 app = FastAPI()
 
-ACCESS_KEY = "837066195c3e07fb2f8d4e180b95de3"
+API_KEY = "YOUR_API_KEY_HERE"  # ⬅️ PUT YOUR apilayer API key here
+BASE_URL = "https://api.apilayer.com/exchangerates_data/convert"
 
 @app.get("/convert")
-def convert(
-    from_: str = Query(..., alias="from"),
-    to: str = Query(...),
+def convert_currency(
+    from_currency: str = Query(..., alias="from_currency"),
+    to_currency: str = Query(..., alias="to_currency"),
     amount: float = Query(...)
 ):
-    url = (
-        f"https://api.exchangerate.host/convert"
-        f"?from={from_}&to={to}&amount={amount}&access_key={ACCESS_KEY}"
-    )
-    try:
-        response = requests.get(url)
-        data = response.json()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Currency service failed: {str(e)}")
-
-    if not data.get("success"):
-        error_info = data.get("error", {}).get("info", "Unknown error")
-        raise HTTPException(status_code=400, detail=f"Conversion failed: {error_info}")
-
-    result = data.get("result")
-    if result is None:
-        raise HTTPException(status_code=400, detail="No conversion result returned")
-
-    return {
-        "from": from_,
-        "to": to,
-        "amount": amount,
-        "converted": result
+    headers = {
+        "apikey": API_KEY
     }
+
+    params = {
+        "from": from_currency.upper(),
+        "to": to_currency.upper(),
+        "amount": amount
+    }
+
+    try:
+        response = requests.get(BASE_URL, headers=headers, params=params)
+        data = response.json()
+
+        if response.status_code != 200 or "result" not in data:
+            raise HTTPException(status_code=response.status_code, detail=data.get("error", "Conversion failed"))
+
+        return {
+            "from": from_currency.upper(),
+            "to": to_currency.upper(),
+            "amount": amount,
+            "converted_amount": data["result"]
+        }
+
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
