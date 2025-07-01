@@ -3,7 +3,7 @@ import requests
 
 app = FastAPI()
 
-API_KEY = "your_actual_key_here"  # Replace with your real exchangerate.host key
+API_KEY = "837066195c3e07fb2f8d4e180b95de3"  # Your actual API key
 
 @app.get("/convert")
 def convert_currency(from_currency: str, to_currency: str, amount: float):
@@ -18,3 +18,4 @@ def convert_currency(from_currency: str, to_currency: str, amount: float):
 
     data = response.json()
     return {"result": data.get("result")}
+
